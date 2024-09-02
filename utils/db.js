@@ -2,41 +2,54 @@ import { MongoClient } from 'mongodb';
 
 class DBClient {
   constructor() {
-    const host = process.env.DB_HOST || 'localhost';
-    const port = process.env.DB_PORT || 27017;
-    const database = process.env.DB_DATABASE || 'files_manager';
-
-    this.uri = `mongodb://${host}:${port}`;
-    this.dbClient = new MongoClient(this.uri, {
-      useUnifiedTopology: true,
+    const host = process.env.DB_HOST ? process.env.DB_HOST : 'localhost';
+    const port = process.env.DB_PORT ? process.env.DB_PORT : '27017';
+    const database = process.env.DB_DATABASE ? process.env.DB_DATABASE : 'files_manager';
+    const url = `mongodb://${host}:${port}/${database}`;
+    this.connected = false;
+    this.client = new MongoClient(url, {
       useNewUrlParser: true,
+      useUnifiedTopology: true,
     });
-    this.dbClient
-      .connect()
-      .then(() => {
-        this.db = this.dbClient.db(`${database}`);
-      })
-      .catch((err) => {
+    (async () => {
+      try {
+        await this.client.connect();
+        this.db = this.client.db(database);
+        this.connected = true;
+      } catch (err) {
         console.log(err);
-      });
+        this.connected = false;
+      }
+    })();
   }
 
   isAlive() {
-    return this.dbClient.isConnected();
+    return (this.connected);
   }
 
   async nbUsers() {
-    const users = this.db.collection('users');
-    const numberOfUsers = await users.countDocuments();
-    return numberOfUsers;
+    let documentUser = null;
+    try {
+      const userCollection = this.db.collection('users');
+      documentUser = await userCollection.countDocuments();
+    } catch (err) {
+      console.log(err);
+    }
+    return documentUser;
   }
 
   async nbFiles() {
-    const files = this.db.collection('files');
-    const numberOfFiles = await files.countDocuments();
-    return numberOfFiles;
+    let fileDocument = null;
+    try {
+      const fileCollection = this.db.collection('files');
+      fileDocument = await fileCollection.countDocuments();
+    } catch (err) {
+      console.log(err);
+    }
+    return fileDocument;
   }
 }
 
 const dbClient = new DBClient();
+
 export default dbClient;
